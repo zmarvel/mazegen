@@ -38,9 +38,11 @@ enum Direction {
  */
 function makeBoard(dims: [number, number]): Board {
     const [width, height] = dims;
+    let walls: Array<number> = new Array(width*height);
+    walls.fill(0xf);
     return {
         dims: dims,
-        walls: new Array(width*height).fill(true),
+        walls: walls,
     }
 }
 
@@ -88,7 +90,7 @@ function neighbors(board: Board, curr: Point): Array<Point> {
  * @returns Integer in the range [start, end).
  */
 function randomInt(start: number, end?: number): number {
-    if (!end) {
+    if (end === undefined) {
         return randomInt(0, start)
     }
     let randFloat = Math.random();
@@ -110,7 +112,7 @@ function shuffle<T>(arr: Array<T>): Array<T> {
 
     for (let i = 0; i < arr.length; i++) {
         let nextIdx = randomInt(unshuffled.length);
-        result.push(unshuffled.splice(nextIdx)[0]);
+        result.push(unshuffled.splice(nextIdx, 1)[0]);
     }
 
     return result
@@ -233,8 +235,8 @@ function fillBoardDFS(board: DFSBoard, curr?: Point): Board {
         board.walls.fill(0xf)
     }
     const [width, height] = board.dims;
-    let neighborCells = shuffle(neighbors(board, curr));
-    for (const dir of shuffle(DIRECTIONS)) {
+    let shuffled = shuffle(DIRECTIONS);
+    for (const dir of shuffled) {
         const neighbor = addVector(curr, directionToDelta(dir))
         if (!isCellVisited(board, neighbor)) {
             visitCell(board, curr, dir)
@@ -246,5 +248,34 @@ function fillBoardDFS(board: DFSBoard, curr?: Point): Board {
 
 
 function drawBoard(board: Board, ctx: CanvasRenderingContext2D): void {
+    // Moving left to right and top to bottom, look at the southern and eastern
+    // edges of each cell and draw it if it's present. We can assume the
+    // outermost cells have a solid outer border.
 
+    const cellSize = 16;
+
+    const [width, height] = board.dims;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = y * width + x;
+            const cx = x * cellSize;
+            const cy = y * cellSize;
+            if (board.walls[i] & Direction.East) {
+                // draw eastern wall
+                ctx.moveTo(cx + cellSize, cy);
+                ctx.lineTo(cx + cellSize, cy + cellSize);
+            }
+            if (board.walls[i] & Direction.South) {
+                // draw southern wall
+                ctx.moveTo(cx, cy + cellSize);
+                ctx.lineTo(cx + cellSize, cy + cellSize);
+            }
+        }
+    }
+
+    // draw borders
+    ctx.moveTo(0, 0);
+    ctx.lineTo(width * cellSize, 0);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, height * cellSize);
 }
